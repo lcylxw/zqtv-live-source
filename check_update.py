@@ -4,6 +4,8 @@
 """
 import json
 import os
+import re
+import shutil
 import subprocess
 import zipfile
 import requests
@@ -15,9 +17,9 @@ STATE_FILE = "state.json"
 OUTPUT_FILE = "source.txt"
 LOG_FILE = "update_log.md"
 
-# 需要删除的频道关键词
-AD_CHANNELS = [
-    # 购物频道
+# 需要删除的频道关键词（精确匹配频道名开头）
+BLOCK_CHANNELS = [
+    # ===== 购物频道 =====
     "养生馆", "健康有约", "百姓健康", "中华特产", "INBM证券服务",
     "太原佰乐购", "快乐购", "上虞新商都", "优购物", "央广购物",
     "南方购物", "家有购物", "东方购物", "CCTV中视购物",
@@ -25,21 +27,31 @@ AD_CHANNELS = [
     "河北三佳购物", "河南欢腾购物", "深圳宜和购物", "爱家购物",
     "西安乐购购物", "辽宁宜佳购物", "重庆时尚购物", "长沙嘉丽购物",
     "严选好物", "好物分享", "精品甄选", "健康甄选",
-    # CCTV专题
+    "好易购", "广西乐思购",
+    # ===== 广告填充 =====
+    "福利多多", "美好生活",
+    "家庭理财", "潍坊金融频道",
+    "潍坊新时尚", "潍坊生殖健康", "潍坊文艺时尚",
+    "商城新闻频道", "潍坊企业家",
+    # ===== 导视频道 =====
+    "安徽导视", "廊坊导视频道", "杭州导视纪录",
+    # ===== CCTV专题 =====
     "CCTV电视指南", "CCTV世界地理", "CCTV女性时尚", "CCTV卫生健康",
-    # CGTN系列
+    # ===== CGTN系列 =====
     "CGTN",
-    # 书画/天气
+    # ===== 书画/天气 =====
     "书画频道", "中国天气",
-    # 教育频道
+    # ===== 教育频道 =====
     "教育频道", "教育法制", "科学教育", "职业教育", "远程教育",
     "远程党员", "文化教育", "教育科技", "教育人文", "教育青少",
     "科技教育", "生活教育", "早期教育", "现代教育",
     "中国国际教育", "中国教育1", "中国教育2", "中国教育3", "中国教育4",
     "GRTN教育",
+    # ===== 非正规频道 =====
+    "西安商务资讯", "深圳众创TV", "GRTN健康频道",
 ]
 
-# 失效的线路
+# 失效的线路（URL中包含这些字符串的整行删除）
 DEAD_URLS = ["101.35.240.114:88"]
 
 
@@ -69,26 +81,28 @@ def save_state(source, ver, pubmsg):
         json.dump(state, f, ensure_ascii=False, indent=2)
 
 
-def build_filter_pattern():
-    """构建正则匹配模式，用于过滤广告频道"""
-    escaped = [ch.replace("(", "\\(").replace(")", "\\)") for ch in AD_CHANNELS]
-    return "^(" + "|".join(escaped) + "),"
-
-
 def clean_source(content):
     """清理广告频道和失效线路"""
     lines = content.strip().split("\n")
     cleaned = []
-    ad_pattern = build_filter_pattern()
-    import re
+    removed = 0
+
+    # 构建正则：匹配频道名开头
+    escaped = [ch.replace("(", "\\(").replace(")", "\\)") for ch in BLOCK_CHANNELS]
+    block_pattern = re.compile("^(" + "|".join(escaped) + "),", re.IGNORECASE)
+
     for line in lines:
         # 跳过广告频道
-        if re.match(ad_pattern, line, re.IGNORECASE):
+        if block_pattern.match(line):
+            removed += 1
             continue
         # 跳过失效线路
         if any(dead in line for dead in DEAD_URLS):
+            removed += 1
             continue
         cleaned.append(line)
+
+    log(f"清理完成: 删除 {removed} 条, 剩余 {len(cleaned)} 行")
     return "\n".join(cleaned) + "\n"
 
 
@@ -98,9 +112,13 @@ def download_and_decrypt(zip_url):
     tmp_dir = "/tmp/zqtv_extract"
 
     log(f"正在下载: {zip_url}")
-    resp = requests.get(zip_url, timeout=60)
-    if resp.status_code != 200:
-        log(f"下载失败: HTTP {resp.status_code}")
+    try:
+        resp = requests.get(zip_url, timeout=60)
+        if resp.status_code != 200:
+            log(f"下载失败: HTTP {resp.status_code}")
+            return None
+    except Exception as e:
+        log(f"下载失败: {e}")
         return None
 
     with open(tmp_zip, "wb") as f:
@@ -113,27 +131,22 @@ def download_and_decrypt(zip_url):
             zf.extractall(tmp_dir, pwd=PASSWORD.encode())
         log("解密成功")
     except Exception as e:
-        log(f"解密失败: {e}")
+        log(f"解密失败（密码可能已更换）: {e}")
         return None
 
     # 读取并清理
     src_path = os.path.join(tmp_dir, "source.txt")
     if not os.path.exists(src_path):
-        log("source.txt 不存在")
+        log("source.txt 不存在于zip中")
         return None
 
     with open(src_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     cleaned = clean_source(content)
-    lines = cleaned.strip().split("\n")
-    channels = [l for l in lines if "," in l and "#genre#" not in l]
-    genres = [l for l in lines if "#genre#" in l]
-    log(f"清理完成: {len(lines)} 行, {len(channels)} 个频道, {len(genres)} 个分类")
 
     # 清理临时文件
     os.remove(tmp_zip)
-    import shutil
     shutil.rmtree(tmp_dir, ignore_errors=True)
 
     return cleaned
@@ -142,42 +155,26 @@ def download_and_decrypt(zip_url):
 def git_commit_and_push():
     """提交变更到 GitHub"""
     try:
-        # 配置 git 用户
         subprocess.run(["git", "config", "user.name", "github-actions[bot]"], check=True)
         subprocess.run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"], check=True)
 
-        # 添加文件
-        files_to_add = []
-        for f in [OUTPUT_FILE, STATE_FILE, LOG_FILE]:
-            if os.path.exists(f):
-                files_to_add.append(f)
-
+        files_to_add = [f for f in [OUTPUT_FILE, STATE_FILE, LOG_FILE] if os.path.exists(f)]
         if not files_to_add:
             log("没有需要提交的文件")
             return
 
         subprocess.run(["git", "add"] + files_to_add, check=True)
 
-        # 检查是否有变更
-        result = subprocess.run(
-            ["git", "status", "--porcelain"],
-            capture_output=True, text=True, check=True
-        )
+        result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, check=True)
         if not result.stdout.strip():
             log("没有需要提交的变更")
             return
 
-        # 提交
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
-        subprocess.run(
-            ["git", "commit", "-m", f"auto: 更新直播源 {timestamp}"],
-            check=True
-        )
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+        subprocess.run(["git", "commit", "-m", f"auto: 更新直播源 {timestamp}"], check=True)
 
-        # 推送（使用 GITHUB_TOKEN 认证）
         token = os.environ.get("GITHUB_TOKEN", "")
         repo_url = os.environ.get("GITHUB_REPOSITORY", "")
-
         if token and repo_url:
             push_url = f"https://x-access-token:{token}@github.com/{repo_url}.git"
             subprocess.run(["git", "push", push_url], check=True)
