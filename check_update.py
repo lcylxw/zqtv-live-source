@@ -17,7 +17,7 @@ LOG_FILE = "update_log.md"
 
 # 需要删除的广告/购物频道关键词
 AD_CHANNELS = [
-    "养生馆","福利多多", "健康有约", "百姓健康", "中华特产", "INBM证券服务",
+    "养生馆", "福利多多", "健康有约", "百姓健康", "中华特产", "INBM证券服务",
     "太原佰乐购", "快乐购", "上虞新商都", "优购物", "央广购物",
     "南方购物", "家有购物", "东方购物", "CCTV中视购物",
     "四川星空购物", "大连乐天购物", "山东居家购物", "成都每日购物",
@@ -129,7 +129,23 @@ def download_and_decrypt(zip_url):
 def git_commit_and_push():
     """提交变更到 GitHub"""
     try:
-        subprocess.run(["git", "add", OUTPUT_FILE, STATE_FILE, LOG_FILE], check=True)
+        # 配置 git 用户
+        subprocess.run(["git", "config", "user.name", "github-actions[bot]"], check=True)
+        subprocess.run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"], check=True)
+
+        # 添加文件
+        files_to_add = []
+        for f in [OUTPUT_FILE, STATE_FILE, LOG_FILE]:
+            if os.path.exists(f):
+                files_to_add.append(f)
+
+        if not files_to_add:
+            log("没有需要提交的文件")
+            return
+
+        subprocess.run(["git", "add"] + files_to_add, check=True)
+
+        # 检查是否有变更
         result = subprocess.run(
             ["git", "status", "--porcelain"],
             capture_output=True, text=True, check=True
@@ -138,19 +154,23 @@ def git_commit_and_push():
             log("没有需要提交的变更")
             return
 
+        # 提交
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
         subprocess.run(
-            ["git", "config", "user.name", "github-actions[bot]"],
+            ["git", "commit", "-m", f"auto: 更新直播源 {timestamp}"],
             check=True
         )
-        subprocess.run(
-            ["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"],
-            check=True
-        )
-        subprocess.run(
-            ["git", "commit", "-m", f"auto: 更新直播源 {datetime.now().strftime('%Y-%m-%d %H:%M')}"],
-            check=True
-        )
-        subprocess.run(["git", "push"], check=True)
+
+        # 推送（使用 GITHUB_TOKEN 认证）
+        token = os.environ.get("GITHUB_TOKEN", "")
+        repo_url = os.environ.get("GITHUB_REPOSITORY", "")
+
+        if token and repo_url:
+            push_url = f"https://x-access-token:{token}@github.com/{repo_url}.git"
+            subprocess.run(["git", "push", push_url], check=True)
+        else:
+            subprocess.run(["git", "push"], check=True)
+
         log("已提交并推送到 GitHub")
     except subprocess.CalledProcessError as e:
         log(f"Git 操作失败: {e}")
