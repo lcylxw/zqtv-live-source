@@ -1,0 +1,34 @@
+name: 朱雀TV直播源自动更新
+
+on:
+  schedule:
+    # 每2小时检测一次（UTC时间，北京时间需+8）
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
+    # 支持手动触发
+
+jobs:
+  check-update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 安装依赖
+        run: pip install requests
+
+      - name: 运行检测脚本
+        run: python check_update.py
+
+      - name: 如果有更新，创建 Release
+        if: success()
+        run: |
+          if git diff --quiet HEAD; then
+            echo "没有变更，跳过Release"
+          else
+            TIMESTAMP=$(date '+%Y%m%d%H%M')
+            echo "有变更，准备发布..."
+          fi
