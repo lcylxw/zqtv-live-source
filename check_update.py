@@ -239,45 +239,66 @@ def download_wangzi():
 
 
 def extract_wangzi_cctv(wangzi_content):
-    """从王子电视提取央视频道（CCTV+卫视）"""
+    """从王子电视提取央视频道，分离CCTV和卫视"""
     data = parse_source(wangzi_content)
-    result = []
+    cctv = []
+    weishi = []
     for genre, channels in data.items():
         if genre == '央视频道':
             for name, url in channels:
-                result.append((name, url))
-    log(f"王子电视: 提取央视/卫视 {len(result)} 条")
-    return result
+                if name.upper().startswith('CCTV'):
+                    cctv.append((name, url))
+                else:
+                    weishi.append((name, url))
+    log(f"王子电视: CCTV {len(cctv)} 条, 卫视 {len(weishi)} 条")
+    return cctv, weishi
 
 
-def merge_and_sort(zqtv_content, wangzi_cctv):
-    """合并朱雀TV和王子电视CCTV源，按速度+画质排序"""
+def merge_and_sort(zqtv_content, wangzi_cctv, wangzi_weishi):
+    """合并朱雀TV和王子电视源，按速度+画质排序"""
     zqtv = parse_source(zqtv_content)
 
     # 速度测试王子电视CCTV源
-    log("王子电视: 开始速度测试...")
-    tested_wangzi = []
+    log("王子电视: 开始速度测试CCTV...")
+    tested_cctv = []
     for name, url in wangzi_cctv:
         ok, ms = speed_test(url, timeout=5)
         qs = quality_score(name, url)
         if ok:
-            tested_wangzi.append((name, url, qs, ms))
-    log(f"王子电视: {len(tested_wangzi)}/{len(wangzi_cctv)} 条可用")
+            tested_cctv.append((name, url, qs, ms))
+    log(f"王子电视: CCTV {len(tested_cctv)}/{len(wangzi_cctv)} 条可用")
+
+    # 速度测试王子电视卫视源
+    log("王子电视: 开始速度测试卫视...")
+    tested_weishi = []
+    for name, url in wangzi_weishi:
+        ok, ms = speed_test(url, timeout=5)
+        qs = quality_score(name, url)
+        if ok:
+            tested_weishi.append((name, url, qs, ms))
+    log(f"王子电视: 卫视 {len(tested_weishi)}/{len(wangzi_weishi)} 条可用")
 
     # 合并到朱雀TV的央视频道
     if '央视频道' in zqtv:
-        # 王子电视的源加入，标记来源
         merged = []
         for name, url in zqtv['央视频道']:
             qs = quality_score(name, url)
             merged.append((name, url, qs, 9999, 'zqtv'))
-        for name, url, qs, ms in tested_wangzi:
+        for name, url, qs, ms in tested_cctv:
             merged.append((name, url, qs, ms, 'wangzi'))
-
-        # 按画质降序 -> 速度升序排序
         merged.sort(key=lambda x: (-x[2], x[3]))
-
         zqtv['央视频道'] = [(n, u) for n, u, qs, ms, src in merged]
+
+    # 合并到朱雀TV的卫视频道
+    if '卫视频道' in zqtv:
+        merged = []
+        for name, url in zqtv['卫视频道']:
+            qs = quality_score(name, url)
+            merged.append((name, url, qs, 9999, 'zqtv'))
+        for name, url, qs, ms in tested_weishi:
+            merged.append((name, url, qs, ms, 'wangzi'))
+        merged.sort(key=lambda x: (-x[2], x[3]))
+        zqtv['卫视频道'] = [(n, u) for n, u, qs, ms, src in merged]
 
     # 只保留指定分类
     final = OrderedDict()
@@ -330,7 +351,8 @@ def main():
     log("开始检测直播源更新")
 
     zqtv_content = None
-    wangzi_cctv = None
+    wangzi_cctv = []
+    wangzi_weishi = []
 
     # 1. 朱雀TV
     log("-" * 30)
@@ -378,7 +400,7 @@ def main():
         if content_hash != last_hash:
             wangzi_raw = download_wangzi()
             if wangzi_raw:
-                wangzi_cctv = extract_wangzi_cctv(wangzi_raw)
+                wangzi_cctv, wangzi_weishi = extract_wangzi_cctv(wangzi_raw)
                 log("王子电视: 已下载")
         else:
             log("王子电视: 无变化")
@@ -389,17 +411,15 @@ def main():
         })
 
     # 3. 合并输出
-    if zqtv_content or wangzi_cctv:
+    if zqtv_content or wangzi_cctv or wangzi_weishi:
         if not zqtv_content:
             if os.path.exists(OUTPUT_FILE):
                 with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
                     zqtv_content = f.read()
             else:
                 zqtv_content = ""
-        if not wangzi_cctv:
-            wangzi_cctv = []
 
-        merged = merge_and_sort(zqtv_content, wangzi_cctv)
+        merged = merge_and_sort(zqtv_content, wangzi_cctv, wangzi_weishi)
         with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
             f.write(merged)
         log(f"已保存到 {OUTPUT_FILE}")
