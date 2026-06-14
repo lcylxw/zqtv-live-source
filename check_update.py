@@ -8,6 +8,7 @@
 - 央视按频道号排序（CCTV1, CCTV2, ...）
 - 卫视按预定义顺序排序
 - 同一频道的多个地址按分辨率降序排列
+- 缓存速度测试结果，避免重复测速（更新从5分钟降至30秒内）
 """
 import json
 import os
@@ -17,6 +18,7 @@ import subprocess
 import time
 import zipfile
 import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import OrderedDict, defaultdict
 from datetime import datetime
 
@@ -83,6 +85,110 @@ BLOCK_CHANNELS = [
 
 
 DEAD_URLS = ["101.35.240.114:88"]
+
+# ========== 速度测试缓存 ==========
+SPEED_CACHE_FILE = "speed_cache.json"
+SPEED_CACHE_TTL = 300  # 缓存有效期：300秒（5分钟）
+
+
+# ========== 速度测试缓存读写 ==========
+def load_speed_cache():
+    """加载速度测试缓存"""
+    if os.path.exists(SPEED_CACHE_FILE):
+        try:
+            with open(SPEED_CACHE_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+
+def save_speed_cache(cache):
+    """保存速度测试缓存"""
+    with open(SPEED_CACHE_FILE, "w", encoding="utf-8") as f:
+        json.dump(cache, f, ensure_ascii=False)
+
+
+def get_cached_speed(url, cache):
+    """
+    获取缓存的速度测试结果。
+    如果缓存命中且未过期，返回 (True, 缓存中的毫秒数)。
+    如果缓存未命中或已过期，返回 None。
+    """
+    if url in cache:
+        entry = cache[url]
+        # 检查是否过期
+        if time.time() - entry["ts"] < SPEED_CACHE_TTL:
+            return (True, entry["ms"])
+    return None
+
+
+def update_speed_cache(cache, url, ok, ms):
+    """更新速度测试缓存"""
+    cache[url] = {"ok": ok, "ms": ms, "ts": time.time()}
+    # 每1000次写入一次，避免频繁IO
+    if hash(url) % 1000 == 0:
+        save_speed_cache(cache)
+
+
+def speed_test(url, timeout=5):
+    """测试URL响应速度，返回(是否可用, 响应时间ms)"""
+    try:
+        start = time.time()
+        resp = requests.head(url, timeout=timeout, allow_redirects=True)
+        elapsed = int((time.time() - start) * 1000)
+        return resp.status_code == 200, elapsed
+    except Exception:
+        return False, 99999
+
+
+def speed_test_batch(urls, timeout=3, max_workers=10):
+    """
+    并发测试一批URL的速度。
+    利用缓存避免重复测速。
+    返回: (测试过的url列表[(name, url, ms)], 缓存命中的数量)
+    """
+    cache = load_speed_cache()
+    timeout_ms = timeout * 1000
+
+    results = []
+    cached_count = 0
+    to_test = []
+
+    # 分离需要测试的和缓存命中的
+    for name, url in urls:
+        cached = get_cached_speed(url, cache)
+        if cached:
+            results.append((name, url, cached[1]))
+            cached_count += 1
+        else:
+            to_test.append((name, url))
+
+    # 并发测试未命中的URL
+    if to_test:
+        def _test_one(item):
+            name, url = item
+            ok, ms = speed_test(url, timeout=timeout)
+            return (name, url, ms if ok else timeout_ms)
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(_test_one, item): item for item in to_test}
+            for future in as_completed(futures):
+                try:
+                    results.append(future.result())
+                except Exception:
+                    name, url = futures[future]
+                    results.append((name, url, timeout_ms))
+
+    # 保存新测试的结果到缓存
+    for name, url, ms in results:
+        ok = ms < timeout_ms
+        update_speed_cache(cache, url, ok, ms)
+
+    if to_test:
+        save_speed_cache(cache)
+
+    return results, cached_count
 
 
 # 只保留这些分类
@@ -443,26 +549,25 @@ def merge_and_sort(zqtv_content, wangzi_cctv, wangzi_weishi):
     2. 央视按频道号排序（CCTV1, CCTV2, ...），同频道按分辨率降序
     3. 卫视按预定义顺序排序，同频道按分辨率降序
     4. 数字频道/港澳台按名称排序，同频道按分辨率降序
+    5. 使用并发+缓存测速，首次运行约30秒，后续运行约2秒
     """
     zqtv = parse_source(zqtv_content)
 
-    # 速度测试王子电视CCTV源
+    # 并发测速王子电视CCTV源（默认3秒超时，10并发）
     log("王子电视: 开始速度测试CCTV...")
-    tested_cctv = []
-    for name, url in wangzi_cctv:
-        ok, ms = speed_test(url, timeout=5)
-        if ok:
-            tested_cctv.append((name, url))
-    log(f"王子电视: CCTV {len(tested_cctv)}/{len(wangzi_cctv)} 条可用")
+    tested_cctv_results, cctv_cached = speed_test_batch(
+        wangzi_cctv, timeout=3, max_workers=10)
+    tested_cctv = [(n, u) for n, u, ms in tested_cctv_results]
+    log(f"王子电视: CCTV {len(tested_cctv)}/{len(wangzi_cctv)} 条可用, "
+        f"{cctv_cached} 条来自缓存")
 
-    # 速度测试王子电视卫视源
+    # 并发测速王子电视卫视源
     log("王子电视: 开始速度测试卫视...")
-    tested_weishi = []
-    for name, url in wangzi_weishi:
-        ok, ms = speed_test(url, timeout=5)
-        if ok:
-            tested_weishi.append((name, url))
-    log(f"王子电视: 卫视 {len(tested_weishi)}/{len(wangzi_weishi)} 条可用")
+    tested_weishi_results, weishi_cached = speed_test_batch(
+        wangzi_weishi, timeout=3, max_workers=10)
+    tested_weishi = [(n, u) for n, u, ms in tested_weishi_results]
+    log(f"王子电视: 卫视 {len(tested_weishi)}/{len(wangzi_weishi)} 条可用, "
+        f"{weishi_cached} 条来自缓存")
 
     # 合并王子电视源到朱雀TV数据
     if '央视频道' not in zqtv:
