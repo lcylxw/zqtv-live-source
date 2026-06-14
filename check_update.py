@@ -390,16 +390,94 @@ def get_weishi_sort_key(name):
     return len(WEISHI_ORDER)  # 未知卫视排最后
 
 
+# 省级/城市地区关键词映射（频道名 → 地区标签）
+# 按出现频率排序，前面优先匹配
+REGION_KEYWORDS = [
+    # 直辖市
+    ("北京", ["北京"]),
+    ("上海", ["上海"]),
+    ("天津", ["天津"]),
+    ("重庆", ["重庆"]),
+    # 省级
+    ("浙江", ["浙江"]),
+    ("江苏", ["江苏"]),
+    ("广东", ["广东", "珠江"]),
+    ("山东", ["山东"]),
+    ("河南", ["河南"]),
+    ("湖北", ["湖北"]),
+    ("湖南", ["湖南"]),
+    ("四川", ["四川"]),
+    ("安徽", ["安徽"]),
+    ("河北", ["河北"]),
+    ("福建", ["福建"]),
+    ("辽宁", ["辽宁"]),
+    ("陕西", ["陕西"]),
+    ("江西", ["江西"]),
+    ("云南", ["云南"]),
+    ("山西", ["山西"]),
+    ("广西", ["广西"]),
+    ("贵州", ["贵州"]),
+    ("海南", ["海南"]),
+    ("甘肃", ["甘肃"]),
+    ("吉林", ["吉林"]),
+    ("黑龙江", ["黑龙江"]),
+    ("内蒙古", ["内蒙古"]),
+    ("新疆", ["新疆"]),
+    ("西藏", ["西藏"]),
+    ("宁夏", ["宁夏"]),
+    ("青海", ["青海"]),
+    ("深圳", ["深圳"]),
+    ("杭州", ["杭州"]),
+    ("南京", ["南京"]),
+    ("成都", ["成都"]),
+    ("武汉", ["武汉"]),
+    ("广州", ["广州"]),
+    ("长沙", ["长沙"]),
+    ("西安", ["西安"]),
+    ("郑州", ["郑州"]),
+    ("沈阳", ["沈阳"]),
+    ("济南", ["济南"]),
+    ("福州", ["福州"]),
+    ("合肥", ["合肥"]),
+    ("南昌", ["南昌"]),
+    ("贵阳", ["贵阳"]),
+    ("昆明", ["昆明"]),
+    ("哈尔滨", ["哈尔滨"]),
+    ("石家庄", ["石家庄"]),
+    ("太原", ["太原"]),
+    ("南宁", ["南宁"]),
+    ("兰州", ["兰州"]),
+    ("长春", ["长春"]),
+    ("呼和浩特", ["呼和浩特"]),
+    ("银川", ["银川"]),
+    ("乌鲁木齐", ["乌鲁木齐"]),
+    ("拉萨", ["拉萨"]),
+    ("西宁", ["西宁"]),
+    ("海口", ["海口"]),
+]
+
+# 地区排序（常用地区在前，自定义地区在后，其余未知归为一类）
+REGION_ORDER = [
+    "北京", "上海", "浙江", "江苏", "广东", "山东", "河南", "湖北", "湖南",
+    "四川", "安徽", "河北", "福建", "辽宁", "陕西", "江西", "云南", "山西",
+    "广西", "贵州", "海南", "甘肃", "吉林", "黑龙江", "内蒙古", "新疆",
+    "西藏", "宁夏", "青海", "深圳", "杭州", "南京", "成都", "武汉", "广州",
+    "长沙", "西安", "郑州", "其他",
+]
+
+
 def classify_channels(genre_channels):
     """
-    严格重新分类：确保CCTV频道只出现在央视，卫视频道只出现在卫视。
-    返回重新分类后的 OrderedDict。
+    严格重新分类：
+    - CCTV频道 → 央视频道
+    - 卫视频道 → 卫视频道
+    - 数字频道 → 按省份/城市细分
+    - 港澳台 → 港澳台
     """
-    # 收集所有频道
-    cctv_channels = []  # (name, url)
+    cctv_channels = []
     weishi_channels = []
     digital_channels = []
-    hkmt_channels = []  # 港澳台
+    hkmt_channels = []
 
     for genre, channels in genre_channels.items():
         for name, url in channels:
@@ -409,30 +487,57 @@ def classify_channels(genre_channels):
                 weishi_channels.append((name, url))
             elif genre == '港澳台':
                 hkmt_channels.append((name, url))
-            elif genre == '数字频道':
-                digital_channels.append((name, url))
             elif genre == '央视频道':
                 # 在央视分类里但不是CCTV的，检查是否是卫视
                 if is_weishi_channel(name):
                     weishi_channels.append((name, url))
                 else:
-                    # 可能是其他央视相关频道（如CCTV风云剧场等数字频道）
                     digital_channels.append((name, url))
             else:
-                # 其他分类，保留到数字频道
+                # 其他分类（数字频道等）
                 digital_channels.append((name, url))
+
+    # 将数字频道按地区细分
+    regions = OrderedDict()
+
+    for name, url in digital_channels:
+        region = detect_region(name)
+        if region not in regions:
+            regions[region] = []
+        regions[region].append((name, url))
 
     result = OrderedDict()
     if cctv_channels:
         result['央视频道'] = cctv_channels
     if weishi_channels:
         result['卫视频道'] = weishi_channels
-    if digital_channels:
-        result['数字频道'] = digital_channels
+
+    # 按预定义顺序输出地区分类
+    for region in REGION_ORDER:
+        if region in regions:
+            result[region] = regions[region]
+
+    # 补充可能出现的未定义地区
+    for region, channels in regions.items():
+        if region not in result:
+            result[region] = channels
+
     if hkmt_channels:
         result['港澳台'] = hkmt_channels
 
     return result
+
+
+def detect_region(name):
+    """
+    根据频道名称检测所属地区。
+    返回地区标签，匹配不到则返回"其他"。
+    """
+    for region, keywords in REGION_KEYWORDS:
+        for kw in keywords:
+            if kw in name:
+                return region
+    return "其他"
 
 
 def sort_channels_by_group(channels, get_sort_key_func):
@@ -582,8 +687,8 @@ def merge_and_sort(zqtv_content, wangzi_cctv, wangzi_weishi):
     classified = classify_channels(zqtv)
     log(f"重新分类完成: 央视 {len(classified.get('央视频道', []))} 条, "
         f"卫视 {len(classified.get('卫视频道', []))} 条, "
-        f"数字 {len(classified.get('数字频道', []))} 条, "
-        f"港澳台 {len(classified.get('港澳台', []))} 条")
+        f"港澳台 {len(classified.get('港澳台', []))} 条, "
+        f"地区分类 {len([k for k in classified if k not in ('央视频道','卫视频道','港澳台')])} 个地区")
 
     # 分类内排序
     final = OrderedDict()
@@ -598,15 +703,22 @@ def merge_and_sort(zqtv_content, wangzi_cctv, wangzi_weishi):
         final['卫视频道'] = sort_channels_by_group(
             classified['卫视频道'], get_weishi_sort_key)
 
-    # 数字频道：按名称排序，同频道按分辨率降序
-    if '数字频道' in classified:
-        final['数字频道'] = sort_channels_by_group(
-            classified['数字频道'], lambda name: name)
-
     # 港澳台：按名称排序，同频道按分辨率降序
     if '港澳台' in classified:
         final['港澳台'] = sort_channels_by_group(
             classified['港澳台'], lambda name: name)
+
+    # 所有地区分类（北京、上海、浙江等）：按名称排序，同频道按分辨率降序
+    # 先收集所有地区分类的键（保持REGION_ORDER顺序）
+    region_keys_in_order = [k for k in REGION_ORDER if k in classified]
+    # 补充未定义的地区
+    for key in classified:
+        if key not in ('央视频道', '卫视频道', '港澳台') and key not in region_keys_in_order:
+            region_keys_in_order.append(key)
+
+    for key in region_keys_in_order:
+        final[key] = sort_channels_by_group(
+            classified[key], lambda name: name)
 
     # 写入
     output = []
