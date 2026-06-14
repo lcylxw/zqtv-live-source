@@ -2,6 +2,12 @@
 朱雀TV 直播源自动更新脚本
 用于 GitHub Actions 定时检测并更新直播源
 合并王子电视CCTV/卫视源，按速度和画质排序
+
+改进：
+- 严格分类：CCTV频道不会混入卫视，卫视不会混入央视
+- 央视按频道号排序（CCTV1, CCTV2, ...）
+- 卫视按预定义顺序排序
+- 同一频道的多个地址按分辨率降序排列
 """
 import json
 import os
@@ -11,8 +17,9 @@ import subprocess
 import time
 import zipfile
 import requests
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from datetime import datetime
+
 
 # ========== 朱雀TV 配置 ==========
 ZQTV_CONFIG_URL = "http://207.56.16.135:9999/zqtv/config.json"
@@ -21,9 +28,11 @@ STATE_FILE = "state.json"
 OUTPUT_FILE = "source.txt"
 LOG_FILE = "update_log.md"
 
+
 # ========== 王子电视配置 ==========
 WANGZI_SOURCE_URL = "http://wangziduoqing.com/yuan/zb.txt"
 WANGZI_STATE_FILE = "wangzi_state.json"
+
 
 # ========== 清理规则 ==========
 BLOCK_CHANNELS = [
@@ -72,10 +81,51 @@ BLOCK_CHANNELS = [
     "CCTV兵器科技", "CCTV7国防军事", "CCTV-兵器科技", "CCTV07国防军事",
 ]
 
+
 DEAD_URLS = ["101.35.240.114:88"]
+
 
 # 只保留这些分类
 KEEP_GENRES = ['央视频道', '卫视频道', '数字频道', '港澳台']
+
+
+# ========== 频道分类与排序规则 ==========
+
+# 判断是否为CCTV频道的正则（匹配 CCTV、cctv 开头，后跟数字或特定名称）
+CCTV_PATTERN = re.compile(
+    r'^(CCTV|cctv)[\s\-]?(\d+|综合|财经|综艺|中文国际|体育|电影|军事|农业|纪录|科教|戏曲|社会与法|新闻|少儿|音乐|4K)',
+    re.IGNORECASE
+)
+
+# 已知卫视频道关键词（用于将误分到央视的卫视频道移回）
+WEISHI_KEYWORDS = [
+    '卫视', '凤凰', '东方卫视', '湖南卫视', '浙江卫视', '江苏卫视',
+    '北京卫视', '东方', '深圳', '广东', '广州', '珠江',
+]
+
+# CCTV频道号提取正则
+CCTV_NUM_PATTERN = re.compile(r'(?:CCTV|cctv)[\s\-]?(\d+)', re.IGNORECASE)
+
+# CCTV频道名称到排序号的映射（用于非纯数字的CCTV频道）
+CCTV_NAME_ORDER = {
+    '综合': 1, '财经': 2, '综艺': 3, '中文国际': 4,
+    '体育': 5, '电影': 6, '军事': 7, '农业': 7,
+    '纪录': 9, '科教': 10, '戏曲': 11, '社会与法': 12,
+    '新闻': 13, '少儿': 14, '音乐': 15, '4K': 16,
+}
+
+# 卫视预定义排序
+WEISHI_ORDER = [
+    '北京卫视', '东方卫视', '天津卫视', '重庆卫视',
+    '湖南卫视', '浙江卫视', '江苏卫视', '广东卫视',
+    '深圳卫视', '山东卫视', '河南卫视', '河北卫视',
+    '湖北卫视', '四川卫视', '安徽卫视', '江西卫视',
+    '福建卫视', '辽宁卫视', '吉林卫视', '黑龙江卫视',
+    '陕西卫视', '甘肃卫视', '青海卫视', '云南卫视',
+    '贵州卫视', '广西卫视', '山西卫视', '内蒙古卫视',
+    '新疆卫视', '西藏卫视', '宁夏卫视', '海南卫视',
+    '东南卫视', '珠江频道', '凤凰中文', '凤凰资讯',
+]
 
 
 def log(msg):
@@ -104,7 +154,7 @@ def build_block_pattern():
 
 
 def quality_score(name, url):
-    """画质评分"""
+    """画质评分（越高越好）"""
     score = 50
     nl = name.lower()
     ul = url.lower()
@@ -119,11 +169,14 @@ def quality_score(name, url):
     elif any(k in nl for k in ['ld', '低清', '流畅']) or '360' in ul:
         score = 20
     for tag in ['/_sd/', '/sd/', '/_sd', '/sd', '_sd.m3u8']:
-        if tag in ul: score = min(score, 40)
+        if tag in ul:
+            score = min(score, 40)
     for tag in ['/_hd/', '/hd/', '/_hd', '/hd', '_hd.m3u8']:
-        if tag in ul: score = max(score, 70)
+        if tag in ul:
+            score = max(score, 70)
     for tag in ['/_fhd/', '/fhd/']:
-        if tag in ul: score = max(score, 90)
+        if tag in ul:
+            score = max(score, 90)
     return score
 
 
@@ -175,6 +228,136 @@ def parse_source(content):
             if url.startswith('http://') or url.startswith('https://'):
                 genre_channels[current_genre].append((name, url))
     return genre_channels
+
+
+def is_cctv_channel(name):
+    """判断是否为CCTV频道"""
+    return bool(CCTV_PATTERN.match(name))
+
+
+def is_weishi_channel(name):
+    """判断是否为卫视频道"""
+    if is_cctv_channel(name):
+        return False
+    return any(kw in name for kw in WEISHI_KEYWORDS) or '卫视' in name
+
+
+def get_cctv_sort_key(name):
+    """
+    获取CCTV频道的排序键。
+    CCTV1 -> 1, CCTV2 -> 2, ..., CCTV-5+ -> 5.5
+    """
+    m = CCTV_NUM_PATTERN.search(name)
+    if m:
+        num = int(m.group(1))
+        # 处理 CCTV5+ 这种情况
+        if '+' in name or '赛事' in name:
+            return num + 0.5
+        return num
+    # 非数字CCTV频道（如"CCTV综合"），按名称映射
+    for cname, order in CCTV_NAME_ORDER.items():
+        if cname in name:
+            return order
+    return 999  # 未知CCTV频道排最后
+
+
+def normalize_channel_name(name):
+    """
+    归一化频道名称，用于将同一频道的不同写法归为一组。
+    例如 "CCTV-1 综合", "CCTV1综合", "CCTV1-综合" 都归为同一频道。
+    """
+    nl = name.upper().strip()
+    # 去除画质后缀
+    for suffix in ['4K', 'UHD', 'FHD', '1080P', '1080I', '720P', 'HD', 'SD',
+                   '高清', '超清', '标清', '蓝光']:
+        nl = nl.replace(suffix, '')
+    # 去除多余空格和分隔符
+    nl = re.sub(r'[\s\-]+', '', nl)
+    return nl.strip()
+
+
+def get_weishi_sort_key(name):
+    """获取卫视频道的排序键"""
+    for i, ws in enumerate(WEISHI_ORDER):
+        if ws in name or name in ws:
+            return i
+    return len(WEISHI_ORDER)  # 未知卫视排最后
+
+
+def classify_channels(genre_channels):
+    """
+    严格重新分类：确保CCTV频道只出现在央视，卫视频道只出现在卫视。
+    返回重新分类后的 OrderedDict。
+    """
+    # 收集所有频道
+    cctv_channels = []  # (name, url)
+    weishi_channels = []
+    digital_channels = []
+    hkmt_channels = []  # 港澳台
+
+    for genre, channels in genre_channels.items():
+        for name, url in channels:
+            if is_cctv_channel(name):
+                cctv_channels.append((name, url))
+            elif genre == '卫视频道' or is_weishi_channel(name):
+                weishi_channels.append((name, url))
+            elif genre == '港澳台':
+                hkmt_channels.append((name, url))
+            elif genre == '数字频道':
+                digital_channels.append((name, url))
+            elif genre == '央视频道':
+                # 在央视分类里但不是CCTV的，检查是否是卫视
+                if is_weishi_channel(name):
+                    weishi_channels.append((name, url))
+                else:
+                    # 可能是其他央视相关频道（如CCTV风云剧场等数字频道）
+                    digital_channels.append((name, url))
+            else:
+                # 其他分类，保留到数字频道
+                digital_channels.append((name, url))
+
+    result = OrderedDict()
+    if cctv_channels:
+        result['央视频道'] = cctv_channels
+    if weishi_channels:
+        result['卫视频道'] = weishi_channels
+    if digital_channels:
+        result['数字频道'] = digital_channels
+    if hkmt_channels:
+        result['港澳台'] = hkmt_channels
+
+    return result
+
+
+def sort_channels_by_group(channels, get_sort_key_func):
+    """
+    将频道按名称分组，组内按分辨率（画质）降序排列，
+    组间按 get_sort_key_func 提供的顺序排列。
+
+    返回排好序的 [(name, url)] 列表。
+    """
+    # 按归一化名称分组
+    groups = defaultdict(list)
+    group_sort_keys = {}
+
+    for name, url in channels:
+        norm = normalize_channel_name(name)
+        groups[norm].append((name, url))
+        # 用第一个遇到的原始名取排序键
+        if norm not in group_sort_keys:
+            group_sort_keys[norm] = get_sort_key_func(name)
+
+    # 按排序键对组排序
+    sorted_group_keys = sorted(groups.keys(), key=lambda k: group_sort_keys[k])
+
+    result = []
+    for gk in sorted_group_keys:
+        items = groups[gk]
+        # 组内按画质降序排列
+        items.sort(key=lambda x: -quality_score(x[0], x[1]))
+        result.extend(items)
+
+    return result
 
 
 def download_zqtv(zip_url):
@@ -239,23 +422,28 @@ def download_wangzi():
 
 
 def extract_wangzi_cctv(wangzi_content):
-    """从王子电视提取央视频道，分离CCTV和卫视"""
+    """从王子电视提取央视和卫视频道（严格分类）"""
     data = parse_source(wangzi_content)
     cctv = []
     weishi = []
     for genre, channels in data.items():
-        if genre == '央视频道':
-            for name, url in channels:
-                if name.upper().startswith('CCTV'):
-                    cctv.append((name, url))
-                else:
-                    weishi.append((name, url))
+        for name, url in channels:
+            if is_cctv_channel(name):
+                cctv.append((name, url))
+            elif genre == '卫视频道' or is_weishi_channel(name):
+                weishi.append((name, url))
     log(f"王子电视: CCTV {len(cctv)} 条, 卫视 {len(weishi)} 条")
     return cctv, weishi
 
 
 def merge_and_sort(zqtv_content, wangzi_cctv, wangzi_weishi):
-    """合并朱雀TV和王子电视源，按速度+画质排序"""
+    """
+    合并朱雀TV和王子电视源。
+    1. 严格重新分类（CCTV归央视，卫视归卫视）
+    2. 央视按频道号排序（CCTV1, CCTV2, ...），同频道按分辨率降序
+    3. 卫视按预定义顺序排序，同频道按分辨率降序
+    4. 数字频道/港澳台按名称排序，同频道按分辨率降序
+    """
     zqtv = parse_source(zqtv_content)
 
     # 速度测试王子电视CCTV源
@@ -263,9 +451,8 @@ def merge_and_sort(zqtv_content, wangzi_cctv, wangzi_weishi):
     tested_cctv = []
     for name, url in wangzi_cctv:
         ok, ms = speed_test(url, timeout=5)
-        qs = quality_score(name, url)
         if ok:
-            tested_cctv.append((name, url, qs, ms))
+            tested_cctv.append((name, url))
     log(f"王子电视: CCTV {len(tested_cctv)}/{len(wangzi_cctv)} 条可用")
 
     # 速度测试王子电视卫视源
@@ -273,38 +460,48 @@ def merge_and_sort(zqtv_content, wangzi_cctv, wangzi_weishi):
     tested_weishi = []
     for name, url in wangzi_weishi:
         ok, ms = speed_test(url, timeout=5)
-        qs = quality_score(name, url)
         if ok:
-            tested_weishi.append((name, url, qs, ms))
+            tested_weishi.append((name, url))
     log(f"王子电视: 卫视 {len(tested_weishi)}/{len(wangzi_weishi)} 条可用")
 
-    # 合并到朱雀TV的央视频道
-    if '央视频道' in zqtv:
-        merged = []
-        for name, url in zqtv['央视频道']:
-            qs = quality_score(name, url)
-            merged.append((name, url, qs, 9999, 'zqtv'))
-        for name, url, qs, ms in tested_cctv:
-            merged.append((name, url, qs, ms, 'wangzi'))
-        merged.sort(key=lambda x: (-x[2], x[3]))
-        zqtv['央视频道'] = [(n, u) for n, u, qs, ms, src in merged]
+    # 合并王子电视源到朱雀TV数据
+    if '央视频道' not in zqtv:
+        zqtv['央视频道'] = []
+    if '卫视频道' not in zqtv:
+        zqtv['卫视频道'] = []
 
-    # 合并到朱雀TV的卫视频道
-    if '卫视频道' in zqtv:
-        merged = []
-        for name, url in zqtv['卫视频道']:
-            qs = quality_score(name, url)
-            merged.append((name, url, qs, 9999, 'zqtv'))
-        for name, url, qs, ms in tested_weishi:
-            merged.append((name, url, qs, ms, 'wangzi'))
-        merged.sort(key=lambda x: (-x[2], x[3]))
-        zqtv['卫视频道'] = [(n, u) for n, u, qs, ms, src in merged]
+    zqtv['央视频道'].extend(tested_cctv)
+    zqtv['卫视频道'].extend(tested_weishi)
 
-    # 只保留指定分类
+    # 严格重新分类
+    classified = classify_channels(zqtv)
+    log(f"重新分类完成: 央视 {len(classified.get('央视频道', []))} 条, "
+        f"卫视 {len(classified.get('卫视频道', []))} 条, "
+        f"数字 {len(classified.get('数字频道', []))} 条, "
+        f"港澳台 {len(classified.get('港澳台', []))} 条")
+
+    # 分类内排序
     final = OrderedDict()
-    for genre in KEEP_GENRES:
-        if genre in zqtv:
-            final[genre] = zqtv[genre]
+
+    # 央视：按频道号排序，同频道按分辨率降序
+    if '央视频道' in classified:
+        final['央视频道'] = sort_channels_by_group(
+            classified['央视频道'], get_cctv_sort_key)
+
+    # 卫视：按预定义顺序排序，同频道按分辨率降序
+    if '卫视频道' in classified:
+        final['卫视频道'] = sort_channels_by_group(
+            classified['卫视频道'], get_weishi_sort_key)
+
+    # 数字频道：按名称排序，同频道按分辨率降序
+    if '数字频道' in classified:
+        final['数字频道'] = sort_channels_by_group(
+            classified['数字频道'], lambda name: name)
+
+    # 港澳台：按名称排序，同频道按分辨率降序
+    if '港澳台' in classified:
+        final['港澳台'] = sort_channels_by_group(
+            classified['港澳台'], lambda name: name)
 
     # 写入
     output = []
