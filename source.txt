@@ -1,6 +1,7 @@
 央视频道,#genre#
 CCTV1,http://47.99.202.156:8004/daili/cctv1hd.m3u8?line=0
 CCTV1,http://47.97.252.137/cdnv2/ty-cctv1.m3u8
+CCTV1,http://47.97.252.137/cdnar/ysp-cctv1.m3u8
 CCTV1,http://47.97.252.137/cdnv2/ysp-cctv1.m3u8
 CCTV1,http://47.97.252.137/cdnv2/cctv1.m3u8
 CCTV1,http://47.99.202.156:8004/apptv/cctv1.m3u8
@@ -21,6 +22,7 @@ CCTV1,http://47.99.202.156:8004/tvlive/cctv1hd.m3u8?node=11
 CCTV1,http://47.99.202.156:8004/tvlive/cctv1hd.m3u8?node=12
 CCTV2,http://47.99.202.156:8004/daili/cctv2hd.m3u8?line=0
 CCTV2,http://47.97.252.137/cdnv2/ty-cctv2.m3u8
+CCTV2,http://47.97.252.137/cdnar/ysp-cctv2.m3u8
 CCTV2,http://47.97.252.137/cdnv2/ysp-cctv2.m3u8
 CCTV2,http://47.97.252.137/cdnv2/cctv2.m3u8
 CCTV2,http://47.99.202.156:8004/apptv/cctv2.m3u8
@@ -40,6 +42,7 @@ CCTV2,http://47.99.202.156:8004/tvlive/cctv2hd.m3u8?node=10
 CCTV2,http://47.99.202.156:8004/tvlive/cctv2hd.m3u8?node=11
 CCTV3,http://47.99.202.156:8004/daili/cctv3hd.m3u8?line=0
 CCTV3,http://47.97.252.137/cdnv2/ty-cctv3.m3u8
+CCTV3,http://47.97.252.137/cdnar/ysp-cctv3.m3u8
 CCTV3,http://47.97.252.137/cdnv2/ysp-cctv3.m3u8
 CCTV3,http://47.97.252.137/cdnv2/cctv3.m3u8
 CCTV3,http://47.99.202.156:8004/apptv/cctv3.m3u8
@@ -59,6 +62,7 @@ CCTV3,http://47.99.202.156:8004/tvlive/cctv3hd.m3u8?node=10
 CCTV3,http://47.99.202.156:8004/tvlive/cctv3hd.m3u8?node=11
 CCTV4,http://47.99.202.156:8004/daili/cctv4hd.m3u8?line=0
 CCTV4,http://47.97.252.137/cdnv2/ty-cctv4.m3u8
+CCTV4,http://47.97.252.137/cdnar/ysp-cctv4.m3u8
 CCTV4,http://47.97.252.137/cdnv2/ysp-cctv4.m3u8
 CCTV4,http://47.97.252.137/cdnv2/cctv4.m3u8
 CCTV4,http://47.99.202.156:8004/apptv/cctv4.m3u8
@@ -78,6 +82,7 @@ CCTV4,http://47.99.202.156:8004/tvlive/cctv4hd.m3u8?node=10
 CCTV4,http://47.99.202.156:8004/tvlive/cctv4hd.m3u8?node=11
 CCTV5,http://47.99.202.156:8004/daili/cctv5hd.m3u8?line=0
 CCTV5,http://47.97.252.137/cdnv2/ty-cctv5.m3u8
+CCTV5,http://47.97.252.137/cdnar/ysp-cctv5.m3u8
 CCTV5,http://47.97.252.137/cdnv2/ysp-cctv5.m3u8
 CCTV5,http://47.97.252.137/cdnv2/cctv5.m3u8
 CCTV5,http://47.99.202.156:8004/apptv/cctv5.m3u8
@@ -97,6 +102,7 @@ CCTV5,http://47.99.202.156:8004/tvlive/cctv5hd.m3u8?node=10
 CCTV5,http://47.99.202.156:8004/tvlive/cctv5hd.m3u8?node=11
 CCTV6,http://47.99.202.156:8004/daili/cctv6hd.m3u8?line=0
 CCTV6,http://47.97.252.137/cdnv2/ty-cctv6.m3u8
+CCTV6,http://47.97.252.137/cdnar/ysp-cctv6.m3u8
 CCTV6,http://47.97.252.137/cdnv2/ysp-cctv6.m3u8
 CCTV6,http://47.97.252.137/cdnv2/cctv6.m3u8
 CCTV6,http://47.99.202.156:8004/apptv/cctv6.m3u8
@@ -118,6 +124,7 @@ CCTV6,http://47.99.202.156:8004/tvlive/cctv6hd.m3u8?node=12
 银龄生活,http://47.97.252.137:81/applive/byt.m3u8?app=jiashitong
 CCTV7,http://47.99.202.156:8004/daili/cctv7hd.m3u8?line=0
 CCTV7,http://47.97.252.137/cdnv2/ty-cctv7.m3u8
+CCTV7,http://47.97.252.137/cdnar/ysp-cctv7.m3u8
 CCTV7,http://47.97.252.137/cdnv2/ysp-cctv7.m3u8
 CCTV7,http://47.97.252.137/cdnv2/cctv7.m3u8
 CCTV7,http://47.99.202.156:8004/apptv/cctv7.m3u8
@@ -137,6 +144,7 @@ CCTV7,http://47.99.202.156:8004/tvlive/cctv7hd.m3u8?node=10
 CCTV7,http://47.99.202.156:8004/tvlive/cctv7hd.m3u8?node=11
 CCTV8,http://47.99.202.156:8004/daili/cctv8hd.m3u8?line=0
 CCTV8,http://47.97.252.137/cdnv2/ty-cctv8.m3u8
+CCTV8,http://47.97.252.137/cdnar/ysp-cctv8.m3u8
 CCTV8,http://47.97.252.137/cdnv2/ysp-cctv8.m3u8
 CCTV8,http://47.97.252.137/cdnv2/cctv8.m3u8
 CCTV8,http://47.99.202.156:8004/apptv/cctv8.m3u8
@@ -157,6 +165,7 @@ CCTV8,http://47.99.202.156:8004/tvlive/cctv8hd.m3u8?node=11
 CCTV8,http://47.99.202.156:8004/tvlive/cctv8hd.m3u8?node=12
 CCTV9,http://47.99.202.156:8004/daili/cctv9hd.m3u8?line=0
 CCTV9,http://47.97.252.137/cdnv2/ty-cctv9.m3u8
+CCTV9,http://47.97.252.137/cdnar/ysp-cctv9.m3u8
 CCTV9,http://47.97.252.137/cdnv2/ysp-cctv9.m3u8
 CCTV9,http://47.97.252.137/cdnv2/cctv9.m3u8
 CCTV9,http://47.99.202.156:8004/apptv/cctv9.m3u8
@@ -176,6 +185,7 @@ CCTV9,http://47.99.202.156:8004/tvlive/cctv9hd.m3u8?node=10
 CCTV9,http://47.99.202.156:8004/tvlive/cctv9hd.m3u8?node=11
 CCTV10,http://47.99.202.156:8004/daili/cctv10hd.m3u8?line=0
 CCTV10,http://47.97.252.137/cdnv2/ty-cctv10.m3u8
+CCTV10,http://47.97.252.137/cdnar/ysp-cctv10.m3u8
 CCTV10,http://47.97.252.137/cdnv2/ysp-cctv10.m3u8
 CCTV10,http://47.97.252.137/cdnv2/cctv10.m3u8
 CCTV10,http://47.99.202.156:8004/apptv/cctv10.m3u8
@@ -195,6 +205,7 @@ CCTV10,http://47.99.202.156:8004/tvlive/cctv10hd.m3u8?node=10
 CCTV10,http://47.99.202.156:8004/tvlive/cctv10hd.m3u8?node=11
 CCTV11,http://47.99.202.156:8004/daili/cctv11hd.m3u8?line=0
 CCTV11,http://47.97.252.137/cdnv2/ty-cctv11.m3u8
+CCTV11,http://47.97.252.137/cdnar/ysp-cctv11.m3u8
 CCTV11,http://47.97.252.137/cdnv2/ysp-cctv11.m3u8
 CCTV11,http://47.97.252.137/cdnv2/cctv11.m3u8
 CCTV11,http://47.99.202.156:8004/apptv/cctv11.m3u8
@@ -214,6 +225,7 @@ CCTV11,http://47.99.202.156:8004/tvlive/cctv11hd.m3u8?node=10
 CCTV11,http://47.99.202.156:8004/tvlive/cctv11hd.m3u8?node=11
 CCTV12,http://47.99.202.156:8004/daili/cctv12hd.m3u8?line=0
 CCTV12,http://47.97.252.137/cdnv2/ty-cctv12.m3u8
+CCTV12,http://47.97.252.137/cdnar/ysp-cctv12.m3u8
 CCTV12,http://47.97.252.137/cdnv2/ysp-cctv12.m3u8
 CCTV12,http://47.97.252.137/cdnv2/cctv12.m3u8
 CCTV12,http://47.99.202.156:8004/apptv/cctv12.m3u8
@@ -234,6 +246,7 @@ CCTV12,http://47.99.202.156:8004/tvlive/cctv12hd.m3u8?node=11
 CCTV12,http://47.99.202.156:8004/tvlive/cctv12hd.m3u8?node=12
 CCTV13,http://47.99.202.156:8004/daili/cctv13hd.m3u8?line=0
 CCTV13,http://47.97.252.137/cdnv2/ty-cctv13.m3u8
+CCTV13,http://47.97.252.137/cdnar/ysp-cctv13.m3u8
 CCTV13,http://47.97.252.137/cdnv2/ysp-cctv13.m3u8
 CCTV13,http://47.97.252.137/cdnv2/cctv13.m3u8
 CCTV13,http://47.99.202.156:8004/apptv/cctv13.m3u8
@@ -254,6 +267,7 @@ CCTV13,http://47.99.202.156:8004/tvlive/cctv13hd.m3u8?node=11
 会员专享,http://47.97.252.137:81/applive/mkt.m3u8?app=jiashitong
 CCTV14,http://47.99.202.156:8004/daili/cctv14hd.m3u8?line=0
 CCTV14,http://47.97.252.137/cdnv2/ty-cctv14.m3u8
+CCTV14,http://47.97.252.137/cdnar/ysp-cctv14.m3u8
 CCTV14,http://47.97.252.137/cdnv2/ysp-cctv14.m3u8
 CCTV14,http://47.97.252.137/cdnv2/cctv14.m3u8
 CCTV14,http://47.99.202.156:8004/apptv/cctv14.m3u8
@@ -273,6 +287,7 @@ CCTV14,http://47.99.202.156:8004/tvlive/cctv14hd.m3u8?node=10
 CCTV14,http://47.99.202.156:8004/tvlive/cctv14hd.m3u8?node=11
 CCTV15,http://47.99.202.156:8004/daili/cctv15hd.m3u8?line=0
 CCTV15,http://47.97.252.137/cdnv2/ty-cctv15.m3u8
+CCTV15,http://47.97.252.137/cdnar/ysp-cctv15.m3u8
 CCTV15,http://47.97.252.137/cdnv2/ysp-cctv15.m3u8
 CCTV15,http://47.97.252.137/cdnv2/cctv15.m3u8
 CCTV15,http://47.99.202.156:8004/apptv/cctv15.m3u8
@@ -292,6 +307,7 @@ CCTV15,http://47.99.202.156:8004/tvlive/cctv15hd.m3u8?node=10
 CCTV15,http://47.99.202.156:8004/tvlive/cctv15hd.m3u8?node=11
 CCTV16,http://47.99.202.156:8004/daili/cctv16hd.m3u8?line=0
 CCTV16,http://47.97.252.137/cdnv2/ty-cctv16.m3u8
+CCTV16,http://47.97.252.137/cdnar/ysp-cctv16.m3u8
 CCTV16,http://47.97.252.137/cdnv2/ysp-cctv16.m3u8
 CCTV16,http://47.97.252.137/cdnv2/cctv16.m3u8
 CCTV16,http://47.99.202.156:8004/apptv/cctv16.m3u8
@@ -311,6 +327,7 @@ CCTV16,http://47.99.202.156:8004/tvlive/cctv16hd.m3u8?node=10
 CCTV16,http://47.99.202.156:8004/tvlive/cctv16hd.m3u8?node=11
 CCTV17,http://47.99.202.156:8004/daili/cctv17hd.m3u8?line=0
 CCTV17,http://47.97.252.137/cdnv2/ty-cctv17.m3u8
+CCTV17,http://47.97.252.137/cdnar/ysp-cctv17.m3u8
 CCTV17,http://47.97.252.137/cdnv2/ysp-cctv17.m3u8
 CCTV17,http://47.97.252.137/cdnv2/cctv17.m3u8
 CCTV17,http://47.99.202.156:8004/apptv/cctv17.m3u8
@@ -330,6 +347,7 @@ CCTV17,http://47.99.202.156:8004/tvlive/cctv17hd.m3u8?node=10
 CCTV17,http://47.99.202.156:8004/tvlive/cctv17hd.m3u8?node=11
 CCTV5+,http://47.99.202.156:8004/daili/cctv5p.m3u8?line=0
 CCTV5+,http://47.97.252.137/cdnv2/ty-cctv5p.m3u8
+CCTV5+,http://47.97.252.137/cdnar/ysp-cctv5p.m3u8
 CCTV5+,http://47.97.252.137/cdnv2/ysp-cctv5p.m3u8
 CCTV5+,http://47.97.252.137/cdnv2/cctv5p.m3u8
 CCTV5+,http://47.99.202.156:8004/apptv/cctv5p.m3u8
