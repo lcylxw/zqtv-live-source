@@ -2096,3 +2096,7 @@
 [2026-10-28 04:45:48] 朱雀TV: 下载完成 42380 字节
 [2026-10-28 04:45:48] 朱雀TV: 保留原始分类 33 个, 频道 7427 条, 清理删除 108 条
 [2026-10-28 04:45:48] 已保存到 source.txt
+[2026-10-28 18:04:52] ==================================================
+[2026-10-28 18:04:52] 开始更新朱雀TV直播源
+[2026-10-28 18:04:52] 模式: 只使用朱雀TV，分类完全保留网站源分类，不合并其他源
+[2026-10-28 18:05:07] 朱雀TV: 无法获取配置 HTTPConnectionPool(host='207.56.16.135', port=9999): Max retries exceeded with url: /zqtv/config.json (Caused by ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x7fa745c7e900>, 'Connection to 207.56.16.135 timed out. (connect timeout=15)'))
