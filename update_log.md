@@ -2412,3 +2412,7 @@
 [2026-11-22 19:13:36] 开始更新朱雀TV直播源
 [2026-11-22 19:13:36] 模式: 只使用朱雀TV，分类完全保留网站源分类，不合并其他源
 [2026-11-22 19:13:51] 朱雀TV: 无法获取配置 HTTPConnectionPool(host='207.56.16.135', port=9999): Max retries exceeded with url: /zqtv/config.json (Caused by ConnectTimeoutError(<HTTPConnection(host='207.56.16.135', port=9999) at 0x79814200c050>, 'Connection to 207.56.16.135 timed out. (connect timeout=15)'))
+[2026-11-23 06:33:26] ==================================================
+[2026-11-23 06:33:26] 开始更新朱雀TV直播源
+[2026-11-23 06:33:26] 模式: 只使用朱雀TV，分类完全保留网站源分类，不合并其他源
+[2026-11-23 06:33:41] 朱雀TV: 无法获取配置 HTTPConnectionPool(host='207.56.16.135', port=9999): Max retries exceeded with url: /zqtv/config.json (Caused by ConnectTimeoutError(<HTTPConnection(host='207.56.16.135', port=9999) at 0x7b058b40c050>, 'Connection to 207.56.16.135 timed out. (connect timeout=15)'))
